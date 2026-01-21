@@ -93,8 +93,6 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
 
     return (
         <div className="chat-container">
-
-
             {/* Header */}
             <div className="chat-header">
                 <div className="chat-header-top">
