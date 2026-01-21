@@ -1,0 +1,247 @@
+.poll-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 24px;
+    background: var(--bg-panel);
+    position: relative;
+    /* Determine if we want it to scroll or be fixed height. 
+       Usually sidebar has its own scroll, but this container fills it. */
+    overflow: hidden;
+}
+
+.poll-header {
+    text-align: center;
+    margin-bottom: 24px;
+    animation: fadeInDown 0.5s ease-out;
+}
+
+.poll-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(59, 130, 246, 0.1);
+    /* var(--primary) with opacity */
+    color: var(--primary);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.poll-question {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.4;
+    margin: 0 0 8px 0;
+}
+
+.poll-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.poll-options-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px;
+    /* Space for focus rings/shadows */
+}
+
+/* Scrollbar styling matching Chat */
+.poll-options-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.poll-options-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.poll-options-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.poll-options-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.poll-option-card {
+    position: relative;
+    background: var(--bg-app);
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    isolation: isolate;
+}
+
+/* Hover state for non-voted */
+.poll-option-card:hover:not(.disabled) {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Selected/Voted State */
+.poll-option-card.selected {
+    border-color: var(--primary);
+    /* background is handled by the progress bar mostly, but we can tint the card */
+}
+
+.poll-option-card.disabled {
+    cursor: default;
+}
+
+/* The background bar demonstrating percentage */
+.poll-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--primary);
+    opacity: 0.1;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+}
+
+.poll-option-card.selected .poll-progress-bar {
+    opacity: 0.15;
+}
+
+/* Leader highlighting (most votes) */
+.poll-option-card.leader .poll-progress-bar {
+    background: var(--primary);
+    /* Usually same color, maybe brighter? */
+}
+
+.poll-card-content {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: relative;
+    z-index: 10;
+}
+
+.poll-option-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.poll-checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.poll-option-card.selected .poll-checkbox {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.poll-option-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.poll-percentage {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    opacity: 0;
+    transform: translateX(10px);
+    transition: all 0.3s;
+}
+
+.poll-option-card.voted .poll-percentage {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Success Message */
+.vote-success-msg {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    /* Emerald 500 */
+    border-radius: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    animation: fadeInUp 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Loading State */
+.poll-loading {
+    display: flex;
+    flex-col: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    gap: 12px;
+    opacity: 0.6;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--bg-hover);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
