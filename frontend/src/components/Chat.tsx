@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Send, MessageSquare, Users, Clock, Check, CheckCheck } from 'lucide-react';
+import { Send, MessageSquare, Users, Clock, CheckCheck } from 'lucide-react';
 import { socket } from '../socket';
 import './Chat.css';
 
@@ -18,6 +18,7 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [typingUser, setTypingUser] = useState<string | null>(null);
+    const [activeUsers, setActiveUsers] = useState(1);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<number | undefined>(undefined);
 
@@ -47,10 +48,15 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
             setTypingUser(null);
         });
 
+        socket.on('update_user_count', (count: number) => {
+            setActiveUsers(count);
+        });
+
         return () => {
             socket.off('receive_message');
             socket.off('display_typing');
             socket.off('stop_display_typing');
+            socket.off('update_user_count');
         };
     }, []);
 
@@ -93,7 +99,6 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
 
     return (
         <div className="chat-container">
-            {/* Header */}
             <div className="chat-header">
                 <div className="chat-header-top">
                     <div className="chat-title-group">
@@ -112,7 +117,7 @@ const Chat: React.FC<ChatProps> = ({ username }) => {
                 <div className="chat-stats">
                     <div className="chat-stat-item">
                         <Users size={14} />
-                        <span>Active now</span>
+                        <span>{activeUsers} Active now</span>
                     </div>
                     <span style={{ color: 'var(--border-color)' }}>•</span>
                     <div className="chat-stat-item">

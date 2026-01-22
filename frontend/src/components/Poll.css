@@ -14,23 +14,54 @@
     text-align: center;
     margin-bottom: 24px;
     animation: fadeInDown 0.5s ease-out;
+    position: relative;
+    /* Added relative positioning for absolute children */
 }
 
-.poll-badge {
-    display: inline-flex;
+/* ... existing styles ... */
+
+/* Loading State */
+.poll-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Header Controls Layout */
+/* New Poll Button */
+.poll-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.poll-create-btn {
+    display: flex;
+    /* Changed from absolute to flex relative to parent */
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
-    background: rgba(59, 130, 246, 0.1);
-    /* var(--primary) with opacity */
-    color: var(--primary);
-    border-radius: 20px;
+    border-radius: 8px;
+    background: var(--bg-hover);
+    color: var(--text-muted);
     font-size: 11px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
+
+.poll-create-btn:hover {
+    color: var(--primary);
+    background: var(--bg-panel);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.15);
+}
+
+/* Success Message */
 
 .poll-question {
     font-size: 20px;
@@ -99,6 +130,27 @@
 
 .poll-option-card.disabled {
     cursor: default;
+}
+
+.poll-option-card.voted {
+    cursor: default;
+    opacity: 0.9;
+}
+
+.poll-option-card.voted:hover {
+    transform: none;
+    background: transparent;
+}
+
+/* Creation Form Overrides */
+input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 /* The background bar demonstrating percentage */
@@ -198,7 +250,7 @@
 /* Loading State */
 .poll-loading {
     display: flex;
-    flex-col: column;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
@@ -244,4 +296,171 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* --- Poll Creation Form Styles --- */
+
+.poll-creation-form {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 4px;
+}
+
+.poll-header.creation-mode {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.poll-header.creation-mode .poll-badge {
+    margin-bottom: 0;
+}
+
+.poll-cancel-btn {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.poll-cancel-btn:hover {
+    color: var(--text-main);
+    background: var(--bg-hover);
+}
+
+.poll-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.poll-input-group label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+}
+
+.poll-input {
+    width: 100%;
+    background: var(--bg-app);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text-main);
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.poll-input:focus {
+    border-color: var(--primary);
+    background: var(--bg-panel);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.poll-input.textarea {
+    resize: none;
+    min-height: 80px;
+    line-height: 1.5;
+}
+
+.poll-options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.poll-option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: fadeInUp 0.3s ease-out;
+}
+
+.poll-input-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+.poll-remove-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.poll-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.poll-add-btn {
+    align-self: flex-start;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 0;
+    margin-left: 4px;
+    opacity: 0.8;
+    transition: all 0.2s;
+}
+
+.poll-add-btn:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.poll-actions {
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.poll-submit-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 59, 130, 246), 0.25);
+}
+
+.poll-submit-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.poll-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }

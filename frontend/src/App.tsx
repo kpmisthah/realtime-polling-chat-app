@@ -1,21 +1,33 @@
 import { useEffect, useState } from 'react';
-import { Sun, Moon, Disc, MessageSquare, BarChart2, LogOut } from 'lucide-react';
+import { Sun, Moon, MessageSquare, BarChart2, LogOut } from 'lucide-react';
 import './App.css';
 import { socket } from './socket';
 import Chat from './components/Chat';
 import Poll from './components/Poll';
+import Auth from './components/Auth';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [username, setUsername] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [activeTab, setActiveTab] = useState<'poll' | 'chat'>('poll'); // Mobile Tab State (poll | chat)
+  const [activeTab, setActiveTab] = useState<'poll' | 'chat'>('poll'); // Mobile Tab State
 
   // Theme Toggle Effect
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Check for existing session
+  useEffect(() => {
+    const storedUser = localStorage.getItem('chat_username');
+    const storedToken = localStorage.getItem('chat_access_token');
+
+    if (storedUser && storedToken) {
+      setUsername(storedUser);
+      setHasJoined(true);
+    }
+  }, []);
 
   // Socket Connection
   useEffect(() => {
@@ -37,52 +49,25 @@ function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username.trim()) {
-      setHasJoined(true);
-      setActiveTab('poll'); // Default to Poll on join
-    }
+  const handleLogin = (user: string, accessToken: string) => {
+    setUsername(user);
+    setHasJoined(true);
+    setActiveTab('poll');
+    // Persist session
+    localStorage.setItem('chat_username', user);
+    localStorage.setItem('chat_access_token', accessToken);
+  };
+
+  const handleLogout = () => {
+    setHasJoined(false);
+    setUsername('');
+    localStorage.removeItem('chat_username');
+    localStorage.removeItem('chat_access_token');
   };
 
   // --- Login Screen ---
   if (!hasJoined) {
-    return (
-      <div className="flex items-center justify-center h-screen w-screen bg-[var(--bg-app)]">
-        <div className="w-full max-w-sm p-6 bg-[var(--bg-panel)] rounded-xl border border-[var(--border-color)] shadow-xl animate-fade-in">
-          <div className="flex flex-col items-center gap-4 mb-6">
-            <div className="p-3 bg-[var(--primary)] bg-opacity-10 rounded-full">
-              <Disc size={32} className="text-[var(--primary)]" />
-            </div>
-            <h1 className="text-2xl font-bold">Join Session</h1>
-          </div>
-
-          <form onSubmit={handleJoin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-muted)] mb-1">Display Name</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full p-3 rounded-lg bg-[var(--bg-app)] border border-[var(--border-color)] text-[var(--text-main)] focus:border-[var(--primary)] outline-none transition-colors"
-                placeholder="e.g. Alex"
-                autoFocus
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!username.trim()}
-              className="w-full p-3 rounded-lg bg-[var(--primary)] text-white font-semibold hover:bg-[var(--primary-hover)] disabled:opacity-50 transition-colors"
-            >
-              Start
-            </button>
-          </form>
-        </div>
-        <button onClick={toggleTheme} className="absolute top-4 right-4 icon-btn">
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-      </div>
-    );
+    return <Auth onLogin={handleLogin} />;
   }
 
   // --- Main App Interface ---
@@ -101,7 +86,7 @@ function App() {
           <button onClick={toggleTheme} className="icon-btn">
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button onClick={() => setHasJoined(false)} className="icon-btn text-red-400 hover:text-red-500">
+          <button onClick={handleLogout} className="icon-btn text-red-400 hover:text-red-500">
             <LogOut size={18} />
           </button>
         </div>
@@ -111,7 +96,6 @@ function App() {
       <div className="app-content">
 
         {/* Left Sidebar: Polls */}
-        {/* On Mobile: Hidden if activeTab is 'chat' */}
         <aside className={`layout-sidebar ${activeTab === 'chat' ? 'hidden-mobile' : ''}`}>
           <div className="p-4 border-b border-[var(--border-color)] sticky top-0 bg-[var(--bg-panel)] z-10">
             <h2 className="font-semibold flex items-center gap-2">
@@ -119,19 +103,18 @@ function App() {
             </h2>
           </div>
           <div className="p-4">
-            <Poll />
+            <Poll username={username} />
           </div>
         </aside>
 
         {/* Right Main: Chat */}
-        {/* On Mobile: Hidden if activeTab is 'poll' */}
         <main className={`layout-main ${activeTab === 'poll' ? 'hidden-mobile' : ''}`}>
           <Chat username={username} />
         </main>
 
       </div>
 
-      {/* Mobile Tab Bar (Only visible < 768px via CSS) */}
+      {/* Mobile Tab Bar */}
       <div className="md:hidden mobile-tab-bar">
         <button
           onClick={() => setActiveTab('poll')}
@@ -149,11 +132,10 @@ function App() {
         </button>
       </div>
 
-      {/* Global Style overrides for Mobile Tab Bar visibility */}
       <style>{`
         @media (min-width: 769px) {
           .mobile-tab-bar { display: none; }
-          .mobile-hidden { display: flex !important; } /* Force show both on desktop */
+          .mobile-hidden { display: flex !important; }
         }
       `}</style>
     </div>

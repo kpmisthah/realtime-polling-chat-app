@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { socket } from '../socket';
-import { BarChart2, Check, CheckCircle2 } from 'lucide-react';
+import { BarChart2, Check, CheckCircle2, Loader2 } from 'lucide-react';
 import './Poll.css';
 
 interface PollOption {
@@ -15,33 +15,175 @@ interface PollData {
     totalVotes: number;
 }
 
-const Poll: React.FC = () => {
+const Poll: React.FC<{ username: string }> = ({ username }) => {
     const [poll, setPoll] = useState<PollData | null>(null);
     const [hasVoted, setHasVoted] = useState(false);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [newQuestion, setNewQuestion] = useState('');
+    const [newOptions, setNewOptions] = useState(['', '']);
 
     useEffect(() => {
         socket.on('update_poll', (data: PollData) => {
-            setPoll(data);
+            // Only reset state if it's a completely NEW poll (different question)
+            // Ideally, polls would have unique IDs to check against.
+            setPoll(prevPoll => {
+                const isNewPoll = prevPoll && prevPoll.question !== data.question;
+                if (isNewPoll) {
+                    setHasVoted(false);
+                    setSelectedOption(null);
+                    setIsCreating(false);
+                    // Re-check status for the new poll just in case
+                    socket.emit('check_poll_status', { username });
+                }
+                return data;
+            });
         });
 
-        // Request initial poll data on mount
-        socket.emit('request_poll');
+        socket.on('user_poll_status', (data: { hasVoted: boolean, optionId?: string }) => {
+            setHasVoted(data.hasVoted);
+            if (data.optionId) {
+                setSelectedOption(data.optionId);
+            }
+        });
 
-        return () => { socket.off('update_poll'); };
-    }, []);
+        const fetchData = () => {
+            socket.emit('request_poll');
+            if (username) {
+                socket.emit('check_poll_status', { username });
+            }
+        };
+
+        socket.on('connect', fetchData);
+
+        // Initial fetch
+        fetchData();
+
+        return () => {
+            socket.off('update_poll');
+            socket.off('user_poll_status');
+            socket.off('connect', fetchData);
+        };
+    }, [username]);
 
     const handleVote = (optionId: string) => {
         if (hasVoted) return;
         setSelectedOption(optionId);
         setHasVoted(true);
-        socket.emit('vote', { optionId });
+        socket.emit('vote', { optionId, username });
     };
+
+    const handleAddOption = () => {
+        if (newOptions.length < 5) setNewOptions([...newOptions, '']);
+    };
+
+    const handleRemoveOption = (index: number) => {
+        if (newOptions.length > 2) {
+            setNewOptions(newOptions.filter((_, i) => i !== index));
+        }
+    };
+
+    const handleOptionChange = (index: number, value: string) => {
+        const updated = [...newOptions];
+        updated[index] = value;
+        setNewOptions(updated);
+    };
+
+    const handleCreatePoll = (e: React.FormEvent) => {
+        e.preventDefault();
+        const validOptions = newOptions.filter(o => o.trim());
+        if (newQuestion.trim() && validOptions.length >= 2) {
+            socket.emit('create_poll', { question: newQuestion, options: validOptions });
+            setNewQuestion('');
+            setNewOptions(['', '']);
+        }
+    };
+
+    if (isCreating) {
+        return (
+            <div className="poll-container">
+                <div className="poll-header creation-mode">
+                    <div className="poll-badge">
+                        <BarChart2 size={14} />
+                        <span>Create New Poll</span>
+                    </div>
+                    {/* Header Controls */}
+                    <button
+                        onClick={() => setIsCreating(false)}
+                        className="poll-cancel-btn"
+                    >
+                        Cancel
+                    </button>
+                </div>
+
+                <form onSubmit={handleCreatePoll} className="poll-creation-form">
+                    <div className="poll-input-group">
+                        <label>Question</label>
+                        <textarea
+                            value={newQuestion}
+                            onChange={(e) => setNewQuestion(e.target.value)}
+                            className="poll-input textarea"
+                            placeholder="Type your question here..."
+                            autoFocus
+                            rows={2}
+                        />
+                    </div>
+
+                    <div className="poll-input-group">
+                        <label>Options</label>
+                        <div className="poll-options-grid">
+                            {newOptions.map((opt, i) => (
+                                <div key={i} className="poll-option-row">
+                                    <div className="poll-input-wrapper">
+                                        <input
+                                            value={opt}
+                                            onChange={(e) => handleOptionChange(i, e.target.value)}
+                                            className="poll-input"
+                                            placeholder={`Option ${i + 1}`}
+                                        />
+                                    </div>
+                                    {newOptions.length > 2 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveOption(i)}
+                                            className="poll-remove-btn"
+                                            title="Remove option"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        {newOptions.length < 5 && (
+                            <button
+                                type="button"
+                                onClick={handleAddOption}
+                                className="poll-add-btn"
+                            >
+                                + Add Option
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="poll-actions">
+                        <button
+                            type="submit"
+                            disabled={!newQuestion.trim() || newOptions.filter(o => o.trim()).length < 2}
+                            className="poll-submit-btn"
+                        >
+                            Launch Poll
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
 
     if (!poll) {
         return (
             <div className="poll-loading">
-                <div className="spinner"></div>
+                <Loader2 className="animate-spin text-[var(--primary)]" size={32} />
                 <p>Connecting to live poll...</p>
             </div>
         );
@@ -53,10 +195,20 @@ const Poll: React.FC = () => {
     return (
         <div className="poll-container">
             {/* Header */}
-            <div className="poll-header">
-                <div className="poll-badge">
-                    <BarChart2 size={14} />
-                    <span>Live Poll</span>
+            <div className="poll-header relative group">
+                <div className="poll-header-top">
+                    <div className="poll-badge">
+                        <BarChart2 size={14} />
+                        <span>Live Poll</span>
+                    </div>
+                    <button
+                        onClick={() => setIsCreating(true)}
+                        className="poll-create-btn"
+                        title="Create New Poll"
+                    >
+                        <BarChart2 size={12} />
+                        <span>New Poll</span>
+                    </button>
                 </div>
                 <h2 className="poll-question">{poll.question}</h2>
                 <div className="poll-meta">
