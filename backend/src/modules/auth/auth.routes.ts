@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import authController from './auth.controller';
-import { validateDto } from '../../middlewares/validate.middleware';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './auth.dto';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { AuthRepository } from './auth.repository';
 
 const router = Router();
 
-router.post('/register', validateDto(RegisterDto), authController.register);
-router.post('/login', validateDto(LoginDto), authController.login);
-// router.get('/me', protect, authController.getMe); // protect middleware needed
-router.post('/refresh-token', validateDto(RefreshTokenDto), authController.refreshAccessToken);
-router.post('/logout', authController.logout);
+// Manual Dependency Injection (Composition Root)
+const authRepository = new AuthRepository();
+const authService = new AuthService(authRepository);
+const authController = new AuthController(authService);
+
+// Routes definition
+router.post('/signup', (req, res) => authController.signup(req, res));
+router.post('/login', (req, res) => authController.login(req, res));
 
 export default router;

@@ -1,22 +1,22 @@
-import { User, IUser } from './auth.model';
+import { UserModel, IUser } from './user.model';
 
-class AuthRepository {
-    async createUser(userData: Partial<IUser>): Promise<IUser> {
-        const user = await User.create(userData);
-        return user;
+export interface IAuthRepository {
+    findUserByUsername(username: string): Promise<IUser | null>;
+    findUserByEmail(email: string): Promise<IUser | null>;
+    createUser(userData: Partial<IUser>): Promise<IUser>;
+}
+
+export class AuthRepository implements IAuthRepository {
+    async findUserByUsername(username: string): Promise<IUser | null> {
+        return await UserModel.findOne({ username });
     }
 
     async findUserByEmail(email: string): Promise<IUser | null> {
-        return await User.findOne({ email }).select('+password');
+        return await UserModel.findOne({ email });
     }
 
-    async findUserById(id: string): Promise<IUser | null> {
-        return await User.findById(id);
-    }
-
-    async updateUser(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
-        return await User.findByIdAndUpdate(id, updateData, { new: true });
+    async createUser(userData: Partial<IUser>): Promise<IUser> {
+        const user = new UserModel(userData);
+        return await user.save();
     }
 }
-
-export default new AuthRepository();

@@ -1,86 +1,80 @@
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import authRepository from './auth.repository';
-import { IUser } from './auth.model';
-import { ApiError } from '../../utils/ApiError';
-import { env } from '../../config/env';
-import { RegisterDto, LoginDto } from './auth.dto';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { IAuthRepository } from './auth.repository';
+import { IUser } from './user.model';
 
-class AuthService {
-    async register(userData: RegisterDto): Promise<{ user: IUser; accessToken: string; refreshToken: string }> {
-        const { email } = userData;
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access_fallback';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh_fallback';
 
-        const existingUser = await authRepository.findUserByEmail(email);
+export class AuthService {
+    constructor(private authRepository: IAuthRepository) { }
+
+    async register(userData: Partial<IUser>) {
+        const existingUser = await this.authRepository.findUserByUsername(userData.username!);
         if (existingUser) {
-            throw new ApiError(400, 'User already exists');
+            throw new Error('Username already taken');
         }
 
-        const user = await authRepository.createUser(userData);
+        const existingEmail = await this.authRepository.findUserByEmail(userData.email!);
+        if (existingEmail) {
+            throw new Error('Email already registered');
+        }
 
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.generateRefreshToken();
+        const newUser = await this.authRepository.createUser(userData);
+        const accessToken = this.generateAccessToken(newUser);
+        const refreshToken = this.generateRefreshToken(newUser);
 
-        user.refreshToken = refreshToken;
-        await user.save();
-
-        return { user, accessToken, refreshToken };
+        return {
+            user: { id: newUser._id, username: newUser.username, email: newUser.email },
+            accessToken,
+            refreshToken
+        };
     }
 
-    async login(userData: LoginDto): Promise<{ user: IUser; accessToken: string; refreshToken: string }> {
-        const { email, password } = userData;
+    async login(userData: Partial<IUser>) {
+        // Try to find user by Username first, then Email if not found (or treat username field as strictly one or other if implied, but here we check both)
+        // Actually, cleaner approach implies one field 'username' from client covers both, OR separate fields.
+        // Let's assume the 'username' field in user object might hold an email.
+        const identifier = userData.username!;
 
-        if (!email || !password) {
-            throw new ApiError(400, 'Please provide an email and password');
-        }
+        let user = await this.authRepository.findUserByUsername(identifier);
 
-        const user = await authRepository.findUserByEmail(email);
         if (!user) {
-            throw new ApiError(401, 'Invalid credentials');
+            user = await this.authRepository.findUserByEmail(identifier);
         }
 
-        const isMatch = await user.comparePassword(password);
+        if (!user || user.password === undefined) {
+            throw new Error('Invalid credentials');
+        }
+
+        const isMatch = await bcrypt.compare(userData.password!, user.password);
         if (!isMatch) {
-            throw new ApiError(401, 'Invalid credentials');
+            throw new Error('Invalid credentials');
         }
 
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.generateRefreshToken();
+        const accessToken = this.generateAccessToken(user);
+        const refreshToken = this.generateRefreshToken(user);
 
-        user.refreshToken = refreshToken;
-        await user.save();
-
-        return { user, accessToken, refreshToken };
+        return {
+            user: { id: user._id, username: user.username },
+            accessToken,
+            refreshToken
+        };
     }
 
-    async refreshAccessToken(incomingRefreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-        try {
-            const decoded = jwt.verify(incomingRefreshToken, env.refreshTokenSecret) as JwtPayload;
-
-            const user = await authRepository.findUserById(decoded._id);
-
-            if (!user) {
-                throw new ApiError(401, 'Invalid refresh token');
-            }
-
-            if (incomingRefreshToken !== user.refreshToken) {
-                throw new ApiError(401, 'Refresh token is expired or used');
-            }
-
-            const accessToken = user.generateAccessToken();
-            const newRefreshToken = user.generateRefreshToken();
-
-            user.refreshToken = newRefreshToken;
-            await user.save();
-
-            return { accessToken, refreshToken: newRefreshToken };
-
-        } catch (error) {
-            throw new ApiError(401, 'Invalid refresh token');
-        }
+    private generateAccessToken(user: IUser): string {
+        return jwt.sign(
+            { id: user._id, username: user.username },
+            ACCESS_TOKEN_SECRET,
+            { expiresIn: '15m' }
+        );
     }
 
-    async logout(userId: string): Promise<void> {
-        await authRepository.updateUser(userId, { refreshToken: undefined });
+    private generateRefreshToken(user: IUser): string {
+        return jwt.sign(
+            { id: user._id, username: user.username },
+            REFRESH_TOKEN_SECRET,
+            { expiresIn: '7d' }
+        );
     }
 }
-
-export default new AuthService();
