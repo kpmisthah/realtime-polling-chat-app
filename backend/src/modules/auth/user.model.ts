@@ -5,6 +5,9 @@ export interface IUser extends Document {
     username: string;
     email: string;
     password?: string; // Hashed
+    settings?: {
+        notifications: boolean;
+    };
 }
 
 const userSchema = new Schema<IUser>({
@@ -27,6 +30,9 @@ const userSchema = new Schema<IUser>({
         type: String,
         required: true,
         minlength: 6
+    },
+    settings: {
+        notifications: { type: Boolean, default: true }
     }
 }, { timestamps: true });
 

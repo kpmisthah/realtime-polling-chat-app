@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { MessageModel } from '../modules/chat/chat.model';
 import { PollModel } from '../modules/poll/poll.model';
+import { UserModel } from '../modules/auth/user.model';
 
 export const setupSocketIO = async (io: Server) => {
 
@@ -32,16 +33,8 @@ export const setupSocketIO = async (io: Server) => {
         connectedUsers.set(socket.id, 'Anonymous');
         io.emit('update_user_count', connectedUsers.size);
 
-        // 1. Send recent chat history
-        const messages = await MessageModel.find().sort({ timestamp: 1 }).limit(50);
-        messages.forEach(msg => {
-            socket.emit('receive_message', {
-                id: msg._id.toString(),
-                text: msg.text,
-                username: msg.username,
-                timestamp: msg.timestamp
-            });
-        });
+        // 1. Send recent chat history is handled by request_history now, or initial load?
+        // Let's keep the initial load simple or rely on client asking.
 
         // 2. Send current polls
         const poll = await getActivePoll();
@@ -59,6 +52,20 @@ export const setupSocketIO = async (io: Server) => {
         });
 
         // --- Chat Events ---
+        socket.on('request_history', async () => {
+            const messages = await MessageModel.find().sort({ timestamp: 1 }).limit(50);
+            messages.forEach(msg => {
+                socket.emit('receive_message', {
+                    id: msg._id.toString(),
+                    text: msg.text,
+                    username: msg.username,
+                    timestamp: msg.timestamp,
+                    isEdited: msg.isEdited,
+                    isDeleted: msg.isDeleted
+                });
+            });
+        });
+
         socket.on('send_message', async (data) => {
             // Save to DB
             const newMessage = await MessageModel.create({
@@ -72,8 +79,30 @@ export const setupSocketIO = async (io: Server) => {
                 id: newMessage._id.toString(),
                 username: newMessage.username,
                 text: newMessage.text,
-                timestamp: newMessage.timestamp
+                timestamp: newMessage.timestamp,
+                isEdited: false,
+                isDeleted: false
             });
+        });
+
+        socket.on('edit_message', async (data: { id: string, text: string, username: string }) => {
+            const message = await MessageModel.findById(data.id);
+            if (message && message.username === data.username) {
+                message.text = data.text;
+                message.isEdited = true;
+                await message.save();
+                io.emit('message_updated', { id: message._id.toString(), text: message.text, isEdited: true });
+            }
+        });
+
+        socket.on('delete_message', async (data: { id: string, username: string }) => {
+            const message = await MessageModel.findById(data.id);
+            if (message && message.username === data.username) {
+                message.isDeleted = true;
+                message.text = "This message was deleted"; // Optional: clear text
+                await message.save();
+                io.emit('message_deleted', { id: message._id.toString() });
+            }
         });
 
         socket.on('typing', (data) => {
@@ -82,6 +111,24 @@ export const setupSocketIO = async (io: Server) => {
 
         socket.on('stop_typing', () => {
             socket.broadcast.emit('stop_display_typing', { id: socket.id });
+        });
+
+        // --- User Settings Events ---
+        socket.on('get_settings', async (data: { username: string }) => {
+            const user = await UserModel.findOne({ username: data.username });
+            if (user && user.settings) {
+                socket.emit('settings_updated', user.settings);
+            }
+        });
+
+        socket.on('update_settings', async (data: { username: string, settings: any }) => {
+            const user = await UserModel.findOne({ username: data.username });
+            if (user) {
+                if (!user.settings) user.settings = { notifications: true };
+                user.settings = { ...user.settings, ...data.settings };
+                await user.save();
+                socket.emit('settings_updated', user.settings);
+            }
         });
 
         // --- Polling Events ---
@@ -101,7 +148,8 @@ export const setupSocketIO = async (io: Server) => {
             // Check if user already voted in this session
             // Using username for persistence across refreshes
             // @ts-ignore - Schema updated but Types might be lagging in IDE check
-            if (poll.votedBy.some((v: any) => v.user === username)) {
+            if (poll.votedBy?.some((v: any) => v.user === username)) {
+                console.log(`User ${username} already voted in poll ${poll._id}`);
                 return;
             }
 
@@ -110,8 +158,11 @@ export const setupSocketIO = async (io: Server) => {
             if (option) {
                 option.votes++;
                 // @ts-ignore
+                if (!poll.votedBy) poll.votedBy = [];
                 poll.votedBy.push({ user: username, optionId }); // Mark as voted by username
+
                 await poll.save(); // Persist to DB
+                console.log(`Vote saved for user ${username} in poll ${poll._id}. Total votes: ${poll.votedBy.length}`);
 
                 // Broadcast updated poll
                 io.emit('update_poll', {
@@ -126,13 +177,16 @@ export const setupSocketIO = async (io: Server) => {
         });
 
         socket.on('check_poll_status', async (data: { username: string }) => {
+            console.log('Checking poll status for:', data.username);
             const poll = await getActivePoll();
             // @ts-ignore
-            const voteRecord = poll.votedBy.find((v: any) => v.user === data.username);
+            const voteRecord = poll.votedBy?.find((v: any) => v.user === data.username);
 
             if (voteRecord) {
+                console.log('Vote found for:', data.username, 'in poll', poll._id);
                 socket.emit('user_poll_status', { hasVoted: true, optionId: voteRecord.optionId });
             } else {
+                console.log('No vote found for:', data.username, 'in poll', poll._id);
                 socket.emit('user_poll_status', { hasVoted: false });
             }
         });
@@ -152,6 +206,7 @@ export const setupSocketIO = async (io: Server) => {
                 })),
                 active: true
             });
+            console.log(`New poll created: ${newPoll._id}`);
 
             // 3. Broadcast to everyone
             io.emit('update_poll', {
