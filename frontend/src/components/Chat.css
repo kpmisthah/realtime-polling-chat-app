@@ -116,7 +116,7 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 100px 24px 100px 24px;
+    padding: 130px 24px 100px 24px;
     /* Top/Bottom padding for header/input */
     display: flex;
     flex-direction: column;
@@ -236,12 +236,15 @@
 }
 
 .message-bubble {
-    max-width: 75%;
+    width: fit-content;
+    max-width: 100%;
+    /* Was 75% but now handled by wrapper context or max-width on bubble itself needs to respect wrapper */
     padding: 12px 16px;
     border-radius: 18px;
     font-size: 15px;
     line-height: 1.5;
-    word-wrap: break-word;
+    word-break: break-word;
+    /* Better for long words, but not break-all */
     position: relative;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     /* Subtle depth */
@@ -344,8 +347,30 @@
     }
 }
 
-/* 
-   Glassmorphism Input 
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/*
+   Glassmorphism Input
    Positioned absolute bottom with blur
 */
 .chat-input-wrapper {
@@ -462,4 +487,189 @@
         max-width: 85%;
         font-size: 14px;
     }
+}
+
+/* --- New Features Styles --- */
+
+/* Mute Button */
+.mute-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.mute-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+
+/* Deleted Message */
+.message-group.deleted .message-bubble {
+    font-style: italic;
+    opacity: 0.6;
+    background: var(--bg-hover) !important;
+    /* Override own/other colors */
+    color: var(--text-muted) !important;
+    box-shadow: none;
+    border: 1px dashed var(--border-color);
+}
+
+/* Edited Label */
+.edited-label {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-left: 6px;
+    font-style: italic;
+}
+
+/* Message Actions (Hover Menu) */
+.message-bubble-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 75%;
+    /* Limit width here */
+}
+
+.message-group.own .message-bubble-wrapper {
+    flex-direction: row-reverse;
+    /* Actions appear to the left of own messages */
+}
+
+.message-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    margin: 0 8px;
+    pointer-events: none;
+    /* Prevent accidental clicks when hidden */
+}
+
+.message-bubble-wrapper:hover .message-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--bg-panel);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+    transform: scale(1.1);
+}
+
+.action-btn.delete:hover {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Edit Mode */
+.edit-message-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.edit-message-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: inherit;
+    font-size: inherit;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+}
+
+.edit-message-input:focus {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.message-group.other .edit-message-input {
+    background: var(--bg-app);
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+/* --- Custom Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    /* Changed from absolute to fixed */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    /* Slightly darker for better focus */
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    /* High z-index to sit on top of everything */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.edit-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.edit-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.edit-btn.cancel:hover {
+    background: rgba(239, 68, 68, 0.5);
+}
+
+.edit-btn.save:hover {
+    background: rgba(34, 197, 94, 0.5);
+}
+
+.message-group.other .edit-btn {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+}
+
+.message-group.other .edit-btn:hover {
+    color: var(--text-main);
 }
