@@ -5,11 +5,11 @@ import { env } from './config/env';
 // Flow:
 // 1. connect database
 // 2. start server
-
+const PORT = process.env.PORT || 3000;
 connectDB()
     .then(() => {
-        server.listen(env.port, () => {
-            console.log(`Server is running at port : ${env.port}`);
+        server.listen(PORT, () => {
+            console.log(`Server is running at port : ${PORT}`);
         });
     })
     .catch((err) => {
