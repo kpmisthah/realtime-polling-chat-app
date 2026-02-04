@@ -5,7 +5,7 @@ import { env } from './config/env';
 // Flow:
 // 1. connect database
 // 2. start server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || env.port || 3000;
 connectDB()
     .then(() => {
         server.listen(PORT, () => {
